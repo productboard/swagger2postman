@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-const converter = require('swagger2-to-postmanv2')
+const converter = require('openapi-to-postmanv2')
 const collection = require('./lib/collection')
 process.env.SUPPRESS_NO_CONFIG_WARNING = 'y';
 var configModule = require('config')
@@ -17,6 +17,7 @@ program.version('1.0.0')
 var serviceConfig = config[program.service]
 var url = serviceConfig.url
 var collectionName = serviceConfig.collection_name
+var collectionId = serviceConfig.collection_id
 
 //run update
 update().catch(err => {
@@ -38,14 +39,14 @@ function getSwaggerJson(url) {
 async function update() {
     var swaggerJson = await getSwaggerJson(url)
     //add postman collection used info
-    swaggerJson['info'] = {
-        'title': collectionName,
-        'description': collectionName + ' api',
-        'version': '1.0.0',
-        '_postman_id': '807bb824-b333-4b59-a6ef-a8d46d3b95bf'
-    }
+    // swaggerJson['info'] = {
+    //     'title': collectionName,
+    //     'description': collectionName + ' api',
+    //     'version': '1.0.0',
+    //     '_postman_id': '807bb824-b333-4b59-a6ef-a8d46d3b95bf'
+    // }
     var converterInputData = {
-        'type': 'json',
+        'type': 'string',
         'data': swaggerJson
     }
 
@@ -58,8 +59,9 @@ async function update() {
         }
         var convertedJson = res.output[0].data
 
-        var id = await collection.getCollectionId(collectionName)
-        if (id === null) {
+        var savedCollection = await collection.getCollectionDetail(collectionId)
+
+        if (savedCollection === null) {
             return
         }
         var collectionJson = {
@@ -67,16 +69,15 @@ async function update() {
                 'info': {
                     'name': collectionName,
                     'description': collectionName + ' api',
-                    '_postman_id': id,
+                    '_postman_id': collectionId,
                     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 
                 },
                 "item": convertedJson.item
             }
         }
-    
-        var savedCollection = await collection.getCollectionDetail(id)   
+
         var mergedCollection=merger.merge(savedCollection,collectionJson)    
-        collection.updateCollection(id, mergedCollection)
+        collection.updateCollection(collectionId, mergedCollection)
     })
 }
